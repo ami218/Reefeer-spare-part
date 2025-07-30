@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Catalog - Responsive Upload</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
+    h1 { text-align: center; color: #333; }
+    .tabs { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; gap: 10px; }
+    .tab-btn { padding: 10px 20px; background: #ccc; border: none; border-radius: 5px; cursor: pointer; }
+    .tab-btn.active { background: #007BFF; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .search-bar { text-align: center; margin-bottom: 15px; }
+    .search-bar input {
+      padding: 8px; width: 90%; max-width: 400px;
+      border: 1px solid #ccc; border-radius: 5px;
+    }
+    .add-form {
+      background: #fff; padding: 15px; border-radius: 10px;
+      max-width: 100%; margin: 0 auto 20px; box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between;
+    }
+    .add-form input {
+      padding: 8px; border: 1px solid #ccc; border-radius: 4px;
+      flex: 1 1 150px; min-width: 120px;
+    }
+    .add-form button {
+      padding: 10px 16px; background: #28a745; color: #fff; border: none;
+      border-radius: 5px; cursor: pointer;
+    }
+    .drop-zone {
+      border: 2px dashed #aaa;
+      padding: 20px;
+      text-align: center;
+      border-radius: 10px;
+      background: #fdfdfd;
+      flex: 1 1 100%;
+    }
+    .drop-zone.dragover {
+      background-color: #e0f7fa;
+    }
+    .product-list .product {
+      background: #fff; margin-bottom: 15px; border-radius: 8px; display: flex;
+      flex-wrap: wrap; gap: 15px; padding: 15px; box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    .product img { width: 260px; height: auto; border-radius: 6px; object-fit: contain; }
+    .details { flex: 1; min-width: 400px; }
+    .price { color: #e67e22; font-weight: bold; }
+    .actions button {
+      margin-right: 10px; padding: 6px 12px;
+      border: none; border-radius: 6px; cursor: pointer;
+    }
+    .edit { background: #ffc107; }
+    .delete { background: #dc3545; color: #fff; }
+    @media(max-width: 600px){
+      .add-form input { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+<h1>📦 แค็ตตาล็อกสินค้า - Responsive</h1>
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('carrier')">CARRIER</button>
+  <button class="tab-btn" onclick="showTab('thermo')">THERMOKING</button>
+  <button class="tab-btn" onclick="showTab('daikin')">DAIKIN</button>
+  <button class="tab-btn" onclick="showTab('starcool')">STAR COOL</button>
+</div>
+<div id="tabsContainer"></div>
+
+<script>
+const brands = ['carrier','thermo','daikin','starcool'];
+function showTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+function createTabs(){
+  const container = document.getElementById('tabsContainer');
+  brands.forEach(b=>{
+    const div = document.createElement('div');
+    div.className = 'tab-content'+(b==='carrier'?' active':'');
+    div.id = b;
+    div.innerHTML = `
+      <div class="search-bar">
+        <input type="text" oninput="filterProducts(this,'${b}')" placeholder="ค้นหา...">
+      </div>
+      <form class="add-form" onsubmit="addProduct(event,'${b}')">
+        <input type="text" placeholder="รหัสสินค้า" class="code" required>
+        <input type="text" placeholder="ชื่อ 中文" class="cn" required>
+        <input type="text" placeholder="ชื่อภาษาอังกฤษ" class="en" required>
+        <input type="text" placeholder="รายละเอียด" class="desc" required>
+        <input type="number" placeholder="ราคาซื้อ" class="cost" required>
+        <input type="number" placeholder="ราคาขายมือ1" class="price1" required>
+        <input type="number" placeholder="ราคาขายมือ2" class="price2" required>
+        <div class="drop-zone" ondrop="handleDrop(event)" ondragover="event.preventDefault()">
+          <p>📁 ลากรูปมาวางตรงนี้ หรือเลือกจากเครื่อง</p>
+          <input type="file" class="imgfile" accept="image/*" onchange="previewImage(this)" required>
+        </div>
+        <button type="submit">เพิ่มสินค้า</button>
+      </form>
+      <div class="product-list"></div>
+    `;
+    container.appendChild(div);
+  });
+}
+createTabs();
+
+function handleDrop(e){
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  const input = e.target.querySelector('input[type=file]');
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+}
+
+function addProduct(e, tab) {
+  e.preventDefault();
+  const form = e.target;
+  const code = form.querySelector('.code').value.trim();
+
+  const exists = Array.from(document.querySelectorAll(`#${tab} .product`))
+    .some(p => p.dataset.code === code);
+  if (exists) return alert('❌ รหัสสินค้านี้ถูกใช้แล้ว');
+
+  const cn = form.querySelector('.cn').value;
+  const en = form.querySelector('.en').value;
+  const desc = form.querySelector('.desc').value;
+  const cost = form.querySelector('.cost').value;
+  const price1 = form.querySelector('.price1').value;
+  const price2 = form.querySelector('.price2').value;
+  const imgInput = form.querySelector('.imgfile');
+
+  if (!imgInput.files.length) return alert('กรุณาเลือกรูปภาพ');
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const imgSrc = reader.result;
+    const div = document.createElement('div');
+    div.className = 'product';
+    div.dataset.code = code;
+    div.innerHTML = `
+      <img src="${imgSrc}">
+      <div class="details">
+        <h3>รหัส: ${code}</h3>
+        <p><strong>中文:</strong> ${cn}</p>
+        <p><strong>English:</strong> ${en}</p>
+        <p>${desc}</p>
+        <p>ราคาซื้อ: ${cost} บาท</p>
+        <p class="price">ราคาขายมือ1: ${price1} บาท</p>
+        <p class="price">ราคาขายมือ2: ${price2} บาท</p>
+        <div class="actions">
+          <button class="edit" onclick="editProduct(this)">แก้ไข</button>
+          <button class="delete" onclick="deleteProduct(this)">ลบ</button>
+        </div>
+      </div>`;
+    document.querySelector(`#${tab} .product-list`).appendChild(div);
+    saveData();
+    form.reset();
+  };
+  reader.readAsDataURL(imgInput.files[0]);
+}
+
+function deleteProduct(btn){
+  btn.closest('.product').remove(); saveData();
+}
+
+function editProduct(btn){
+  const prod = btn.closest('.product');
+  const tab = prod.closest('.tab-content').id;
+  const form = document.querySelector(`#${tab} .add-form`);
+  form.querySelector('.code').value = prod.dataset.code;
+  form.querySelector('.cn').value = prod.querySelectorAll('p')[0].textContent.replace('中文:','').trim();
+  form.querySelector('.en').value = prod.querySelectorAll('p')[1].textContent.replace('English:','').trim();
+  form.querySelector('.desc').value = prod.querySelectorAll('p')[2].textContent.trim();
+  form.querySelector('.cost').value = prod.querySelectorAll('p')[3].textContent.replace(/[^0-9]/g,'');
+  form.querySelector('.price1').value = prod.querySelectorAll('p')[4].textContent.split(':')[1].replace(/[^\d]/g, '').trim();
+  form.querySelector('.price2').value = prod.querySelectorAll('p')[5].textContent.split(':')[1].replace(/[^\d]/g, '').trim();
+  prod.remove(); saveData();
+}
+
+function filterProducts(input,tab){
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll(`#${tab} .product`).forEach(p=>{
+    const all = p.innerText.toLowerCase();
+    p.style.display = all.includes(keyword)?'flex':'none';
+  });
+}
+
+function saveData(){
+  const data = {};
+  brands.forEach(tab=>{
+    data[tab] = Array.from(document.querySelectorAll(`#${tab} .product`)).map(p=>({
+      code:p.dataset.code,
+      cn:p.querySelectorAll('p')[0].textContent.replace('中文:','').trim(),
+      en:p.querySelectorAll('p')[1].textContent.replace('English:','').trim(),
+      desc:p.querySelectorAll('p')[2].textContent.trim(),
+      cost:p.querySelectorAll('p')[3].textContent.replace(/[^0-9]/g,''),
+      price1: p.querySelectorAll('p')[4].textContent.split(':')[1].replace(/[^\d]/g, '').trim(),
+      price2: p.querySelectorAll('p')[5].textContent.split(':')[1].replace(/[^\d]/g, '').trim(),
+      img:p.querySelector('img').src
+    }));
+  });
+  localStorage.setItem('products', JSON.stringify(data));
+}
+
+function loadData(){
+  const raw = localStorage.getItem('products');
+  if(!raw) return;
+  const data = JSON.parse(raw);
+  brands.forEach(tab=>{
+    if(!data[tab]) return;
+    data[tab].forEach(p=>{
+      const div = document.createElement('div');
+      div.className = 'product';
+      div.dataset.code = p.code;
+      div.innerHTML = `
+        <img src="${p.img}"><div class="details">
+        <h3>รหัส: ${p.code}</h3>
+        <p><strong>中文:</strong> ${p.cn}</p>
+        <p><strong>English:</strong> ${p.en}</p>
+        <p>${p.desc}</p>
+        <p>ราคาซื้อ: ${p.cost} บาท</p>
+        <p class="price">ราคาขายมือ1: ${p.price1} บาท</p>
+        <p class="price">ราคาขายมือ2: ${p.price2} บาท</p>
+        <div class="actions">
+          <button class="edit" onclick="editProduct(this)">แก้ไข</button>
+          <button class="delete" onclick="deleteProduct(this)">ลบ</button>
+        </div></div>`;
+      document.querySelector(`#${tab} .product-list`).appendChild(div);
+    });
+  });
+}
+window.onload = loadData;
+</script>
+</body>
+</html>
